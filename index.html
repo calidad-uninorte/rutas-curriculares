@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rutas Curriculares · Universidad del Norte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<aside class="rail">
+  <div class="marca">Rutas Curriculares<span>Universidad del Norte · Dirección de Calidad y Proyectos Académicos</span></div>
+  <nav>
+    <a href="index.html">Inicio</a>
+    <a href="programas.html">Programas</a>
+    <a href="proceso.html">Iniciar un proceso</a>
+    <a href="admin.html">Administración</a>
+  </nav>
+  <div class="pie">Prototipo para revisión interna. La información se guarda en este navegador.</div>
+</aside>
+
+<main>
+  <div class="encabezado">
+    <h1>Cinco caminos, y usted sabe en cuál está</h1>
+    <p>Esta herramienta acompaña al profesor o coordinador que necesita crear un programa, modificarlo, renovar su registro calificado, autoevaluarlo o cerrarlo. Cada camino muestra sus etapas, quién responde por cada una y cuánto suele tardar.</p>
+  </div>
+
+  <section>
+    <div class="rutas" id="lista-rutas"></div>
+  </section>
+
+  <section>
+    <h2>Lo que hay en curso</h2>
+    <div id="resumen-procesos"></div>
+  </section>
+
+  <section>
+    <h2>Antes de empezar</h2>
+    <p>Las duraciones son estimaciones de referencia en días hábiles, construidas a partir de los procedimientos del Sistema Integrado de Gestión de Calidad y de los plazos que fija la normativa. Sirven para planear, no para comprometer fechas.</p>
+    <div class="nota">
+      Los tiempos del Ministerio de Educación Nacional no dependen de la Universidad. En renovación, la solicitud debe radicarse con al menos 14 meses de antelación al vencimiento del registro calificado.
+    </div>
+  </section>
+</main>
+
+<script src="assets/js/datos.js"></script>
+<script src="assets/js/rutas.js"></script>
+<script src="assets/js/almacen.js"></script>
+<script>
+(function () {
+  const e = App.cargar();
+  const cont = document.getElementById("lista-rutas");
+
+  cont.innerHTML = e.rutas.map(r => {
+    const dias = r.etapas.reduce((a, x) => a + (Number(x.dias) || 0), 0);
+    const pista = r.etapas.map(() => "<i></i>").join("");
+    return `<a class="ruta" href="proceso.html?ruta=${encodeURIComponent(r.id)}">
+      <div>
+        <h3>${App.esc(r.nombre)}</h3>
+        <p>${App.esc(r.resumen)}</p>
+        <p class="discreto">${App.esc(r.cuando)}</p>
+        <div class="pista">${pista}</div>
+      </div>
+      <div class="cifras">
+        <b>${r.etapas.length}</b> etapas<br>
+        ${App.meses(dias)}<br>
+        <span class="discreto">${App.esc(r.procedimiento)}</span>
+      </div>
+    </a>`;
+  }).join("");
+
+  const activos = e.procesos.filter(p => p.estado === "En curso" || p.estado === "En pausa");
+  const caja = document.getElementById("resumen-procesos");
+  if (!activos.length) {
+    caja.innerHTML = `<div class="vacio">No hay procesos abiertos en este navegador.
+      <br><br><a href="proceso.html">Iniciar un proceso</a></div>`;
+  } else {
+    caja.innerHTML = `<div class="tabla-envoltura"><table>
+      <thead><tr><th>Programa</th><th>Proceso</th><th>Líder</th><th>Etapa actual</th><th class="num">Avance</th><th>Estado</th></tr></thead>
+      <tbody>${activos.map(p => {
+        const actual = p.etapas.find(x => !x.hecho);
+        return `<tr onclick="location.href='proceso.html?id=${p.id}'" style="cursor:pointer">
+          <td>${App.esc(p.programa || p.division || "—")}</td>
+          <td>${App.esc(p.rutaNombre)}</td>
+          <td>${App.esc(p.lider)}</td>
+          <td>${App.esc(actual ? actual.nombre : "Todas las etapas completadas")}</td>
+          <td class="num">${App.avance(p)} %</td>
+          <td><span class="estado ${p.estado === "En curso" ? "curso" : "pendiente"}">${App.esc(p.estado)}</span></td>
+        </tr>`;
+      }).join("")}</tbody></table></div>`;
+  }
+})();
+</script>
+</body>
+</html>

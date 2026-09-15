@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Programas · Rutas Curriculares</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<aside class="rail">
+  <div class="marca">Rutas Curriculares<span>Universidad del Norte · Dirección de Calidad y Proyectos Académicos</span></div>
+  <nav>
+    <a href="index.html">Inicio</a>
+    <a href="programas.html">Programas</a>
+    <a href="proceso.html">Iniciar un proceso</a>
+    <a href="admin.html">Administración</a>
+  </nav>
+  <div class="pie">Prototipo para revisión interna. La información se guarda en este navegador.</div>
+</aside>
+
+<main>
+  <div class="encabezado">
+    <h1>Programas académicos</h1>
+    <p>Consulte la oferta por división y vea si un programa tiene algún proceso curricular abierto.</p>
+  </div>
+
+  <div class="controles">
+    <label class="campo">Buscar
+      <input id="q" type="search" placeholder="Nombre del programa" autocomplete="off">
+    </label>
+    <label class="campo">División académica
+      <select id="f-division"><option value="">Todas</option></select>
+    </label>
+    <label class="campo">Departamento
+      <select id="f-departamento"><option value="">Todos</option></select>
+    </label>
+    <label class="campo">Nivel de formación
+      <select id="f-nivel"><option value="">Todos</option></select>
+    </label>
+    <label class="campo">Estado
+      <select id="f-estado"><option value="">Todos</option></select>
+    </label>
+    <button class="secundario" id="limpiar">Limpiar filtros</button>
+  </div>
+
+  <p class="discreto" id="conteo"></p>
+  <div id="tabla"></div>
+
+  <section id="por-division"></section>
+</main>
+
+<script src="assets/js/datos.js"></script>
+<script src="assets/js/rutas.js"></script>
+<script src="assets/js/almacen.js"></script>
+<script>
+(function () {
+  const e = App.cargar();
+  const $ = s => document.querySelector(s);
+
+  function opciones(sel, valores) {
+    valores.forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+
+  opciones($("#f-division"), e.divisiones.map(d => d.nombre));
+  opciones($("#f-departamento"), e.departamentos.map(d => d.nombre));
+  opciones($("#f-nivel"), e.catalogos.nivelesFormacion);
+  opciones($("#f-estado"), e.catalogos.estadosPrograma);
+
+  $("#f-division").addEventListener("change", function () {
+    const sel = $("#f-departamento");
+    sel.innerHTML = '<option value="">Todos</option>';
+    const deps = this.value ? e.departamentos.filter(d => d.division === this.value) : e.departamentos;
+    opciones(sel, deps.map(d => d.nombre));
+    pintar();
+  });
+
+  ["#q", "#f-departamento", "#f-nivel", "#f-estado"].forEach(s =>
+    $(s).addEventListener("input", pintar));
+
+  $("#limpiar").addEventListener("click", () => {
+    $("#q").value = ""; $("#f-division").value = ""; $("#f-nivel").value = ""; $("#f-estado").value = "";
+    $("#f-division").dispatchEvent(new Event("change"));
+  });
+
+  function filtrados() {
+    const q = $("#q").value.trim().toLowerCase();
+    return e.programas.filter(p =>
+      (!q || (p.nombre || "").toLowerCase().includes(q)) &&
+      (!$("#f-division").value || p.division === $("#f-division").value) &&
+      (!$("#f-departamento").value || p.departamento === $("#f-departamento").value) &&
+      (!$("#f-nivel").value || p.nivel === $("#f-nivel").value) &&
+      (!$("#f-estado").value || p.estado === $("#f-estado").value)
+    );
+  }
+
+  function pintar() {
+    const lista = filtrados();
+    $("#conteo").textContent = e.programas.length
+      ? lista.length + " de " + e.programas.length + " programas"
+      : "";
+
+    if (!e.programas.length) {
+      $("#tabla").innerHTML = `<div class="vacio">
+        Todavía no hay programas cargados.<br><br>
+        El archivo de programas que se entregó con este prototipo llegó sin datos: solo traía los encabezados.
+        Cargue el listado desde <a href="admin.html">Administración</a>, pestaña Programas, con el botón Importar CSV.
+      </div>`;
+      $("#por-division").innerHTML = "";
+      return;
+    }
+
+    if (!lista.length) {
+      $("#tabla").innerHTML = `<div class="vacio">Ningún programa coincide con los filtros. Ajuste la búsqueda o limpie los filtros.</div>`;
+      return;
+    }
+
+    $("#tabla").innerHTML = `<div class="tabla-envoltura"><table>
+      <thead><tr>
+        <th>Programa</th><th>División</th><th>Departamento</th><th>Nivel</th>
+        <th>Modalidad</th><th class="num">Créditos</th><th>SNIES</th>
+        <th>Vence el RC</th><th>Estado</th><th>Proceso en curso</th>
+      </tr></thead>
+      <tbody>${lista.map(p => {
+        const abiertos = App.procesosDePrograma(p.nombre);
+        const marca = abiertos.length
+          ? abiertos.map(x => `<a href="proceso.html?id=${x.id}"><span class="estado curso">${App.esc(x.rutaNombre)} · ${App.avance(x)} %</span></a>`).join(" ")
+          : `<a href="proceso.html?programa=${encodeURIComponent(p.nombre)}" class="discreto">Iniciar uno</a>`;
+        return `<tr>
+          <td><b>${App.esc(p.nombre)}</b></td>
+          <td>${App.esc(p.division)}</td>
+          <td>${App.esc(p.departamento)}</td>
+          <td>${App.esc(p.nivel)}</td>
+          <td>${App.esc(p.modalidad)}</td>
+          <td class="num">${App.esc(p.creditos)}</td>
+          <td>${App.esc(p.snies)}</td>
+          <td>${App.esc(p.vencimiento)}</td>
+          <td><span class="estado ${p.estado === "Activo" ? "hecho" : "pendiente"}">${App.esc(p.estado || "—")}</span></td>
+          <td>${marca}</td>
+        </tr>`;
+      }).join("")}</tbody></table></div>`;
+
+    const porDiv = {};
+    e.programas.forEach(p => { porDiv[p.division] = (porDiv[p.division] || 0) + 1; });
+    $("#por-division").innerHTML = `<h2>Oferta por división</h2>
+      <div class="tabla-envoltura"><table>
+        <thead><tr><th>División</th><th>Decano</th><th class="num">Programas</th><th class="num">Procesos abiertos</th></tr></thead>
+        <tbody>${e.divisiones.map(d => {
+          const abiertos = e.procesos.filter(x => x.division === d.nombre &&
+            (x.estado === "En curso" || x.estado === "En pausa")).length;
+          return `<tr><td>${App.esc(d.nombre)}</td><td>${App.esc(d.decano)}</td>
+            <td class="num">${porDiv[d.nombre] || 0}</td><td class="num">${abiertos}</td></tr>`;
+        }).join("")}</tbody></table></div>`;
+  }
+
+  pintar();
+})();
+</script>
+</body>
+</html>

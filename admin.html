@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administración · Rutas Curriculares</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<aside class="rail">
+  <div class="marca">Rutas Curriculares<span>Universidad del Norte · Dirección de Calidad y Proyectos Académicos</span></div>
+  <nav>
+    <a href="index.html">Inicio</a>
+    <a href="programas.html">Programas</a>
+    <a href="proceso.html">Iniciar un proceso</a>
+    <a href="admin.html">Administración</a>
+  </nav>
+  <div class="pie">Prototipo para revisión interna. La información se guarda en este navegador.</div>
+</aside>
+
+<main>
+  <div class="encabezado">
+    <h1>Administración</h1>
+    <p>Mantenimiento de las tablas básicas, de las rutas de proceso y de la copia de seguridad de la información.</p>
+  </div>
+
+  <div class="pestanas" id="pestanas"></div>
+  <div id="panel"></div>
+</main>
+
+<script src="assets/js/datos.js"></script>
+<script src="assets/js/rutas.js"></script>
+<script src="assets/js/almacen.js"></script>
+<script>
+(function () {
+  const e = App.cargar();
+  const panel = document.getElementById("panel");
+
+  const SECCIONES = [
+    { id: "programas", t: "Programas" },
+    { id: "divisiones", t: "Divisiones" },
+    { id: "departamentos", t: "Departamentos" },
+    { id: "catalogos", t: "Listas de selección" },
+    { id: "rutas", t: "Rutas de proceso" },
+    { id: "procesos", t: "Procesos abiertos" },
+    { id: "datos", t: "Copia de seguridad" }
+  ];
+
+  // campos de cada tabla: [clave interna, rótulo, encabezado esperado en el CSV]
+  const CAMPOS_PROGRAMA = [
+    ["nombre", "Programa", "NOMBRE DEL PROGRAMA"],
+    ["estado", "Estado", "ESTADO DEL PROGRAMA"],
+    ["division", "División", "DIVISIÓN ACADÉMICA"],
+    ["departamento", "Departamento", "DEPARTAMENTO ACADÉMICO"],
+    ["nivel", "Nivel de formación", "NIVEL DE FORMACIÓN"],
+    ["modalidad", "Modalidad", "MODALIDAD"],
+    ["creditos", "Créditos", "NÚMERO DE CRÉDITOS"],
+    ["duracion", "Periodos de duración", "PERIODOS DE DURACIÓN"],
+    ["snies", "Código SNIES", "CÓDIGO SNIES"],
+    ["resolucion", "Resolución", "RESOLUCIÓN DE APROBACIÓN"],
+    ["vigencia", "Vigencia (años)", "VIGENCIA EN AÑOS"],
+    ["vencimiento", "Vence el RC", "FECHA DE VENCIMIENTO"],
+    ["titulo", "Título que otorga", "TÍTULO QUE OTORGA"]
+  ];
+
+  let actual = location.hash.replace("#", "") || "programas";
+
+  document.getElementById("pestanas").innerHTML = SECCIONES.map(s =>
+    `<button data-sec="${s.id}">${s.t}</button>`).join("");
+  document.querySelectorAll("[data-sec]").forEach(b =>
+    b.addEventListener("click", () => { actual = b.dataset.sec; location.hash = actual; pintar(); }));
+
+  function pintar() {
+    document.querySelectorAll("[data-sec]").forEach(b =>
+      b.classList.toggle("activo", b.dataset.sec === actual));
+    ({
+      programas: secProgramas, divisiones: secDivisiones, departamentos: secDepartamentos,
+      catalogos: secCatalogos, rutas: secRutas, procesos: secProcesos, datos: secDatos
+    }[actual] || secProgramas)();
+  }
+
+  function barraImportar(idBoton, texto) {
+    return `<div class="controles">
+      <button id="${idBoton}-nuevo">Agregar</button>
+      <button class="secundario" id="${idBoton}-importar">Importar CSV</button>
+      <button class="secundario" id="${idBoton}-exportar">Exportar CSV</button>
+      <input type="file" accept=".csv,text/csv" id="${idBoton}-archivo" class="oculto">
+      <span class="discreto">${texto}</span>
+    </div>`;
+  }
+
+  // ---------------------------------------------------------- programas
+
+  function secProgramas() {
+    panel.innerHTML = `<h2>Programas académicos</h2>
+      <p>Cargue el listado institucional. El archivo debe tener los mismos encabezados del reporte de programas: ${CAMPOS_PROGRAMA.map(c => c[2]).join(", ")}.</p>
+      ${barraImportar("pr", e.programas.length + " programas registrados")}
+      <div id="tabla-pr"></div>`;
+
+    document.getElementById("tabla-pr").innerHTML = e.programas.length
+      ? `<div class="tabla-envoltura"><table>
+          <thead><tr>${CAMPOS_PROGRAMA.map(c => `<th>${c[1]}</th>`).join("")}<th></th></tr></thead>
+          <tbody>${e.programas.map((p, i) => `<tr>
+            ${CAMPOS_PROGRAMA.map(c => `<td>${App.esc(p[c[0]])}</td>`).join("")}
+            <td><button class="peligro" data-borrar-pr="${i}">Quitar</button></td>
+          </tr>`).join("")}</tbody></table></div>`
+      : `<div class="vacio">Todavía no hay programas.<br><br>
+          El archivo entregado con este prototipo venía sin filas: solo traía la fila de encabezados.
+          Vuelva a exportarlo desde el sistema de origen y cárguelo con Importar CSV.</div>`;
+
+    document.getElementById("pr-nuevo").addEventListener("click", () => {
+      const nombre = prompt("Nombre del programa");
+      if (!nombre) return;
+      e.programas.push({ nombre: nombre.trim(), estado: "Activo" });
+      App.guardar(); pintar();
+    });
+    document.getElementById("pr-importar").addEventListener("click", () =>
+      document.getElementById("pr-archivo").click());
+    document.getElementById("pr-archivo").addEventListener("change", function () {
+      const f = this.files[0]; if (!f) return;
+      const lector = new FileReader();
+      lector.onload = () => {
+        const filas = App.leerCSV(lector.result);
+        if (!filas.length) { alert("El archivo no tiene filas de datos."); return; }
+        const nuevos = filas.map(f2 => {
+          const o = {};
+          CAMPOS_PROGRAMA.forEach(c => { o[c[0]] = f2[c[2]] || f2[c[1]] || ""; });
+          return o;
+        }).filter(o => o.nombre);
+        if (!nuevos.length) {
+          alert("No se encontró la columna del nombre del programa. Verifique los encabezados del archivo.");
+          return;
+        }
+        if (e.programas.length && !confirm("Se reemplazarán los " + e.programas.length + " programas actuales por " + nuevos.length + ". ¿Continuar?")) return;
+        e.programas = nuevos;
+        App.guardar(); pintar();
+      };
+      lector.readAsText(f, "utf-8");
+      this.value = "";
+    });
+    document.getElementById("pr-exportar").addEventListener("click", () =>
+      App.descargar("programas.csv",
+        App.escribirCSV(e.programas.map(p => {
+          const o = {}; CAMPOS_PROGRAMA.forEach(c => o[c[2]] = p[c[0]]); return o;
+        }), CAMPOS_PROGRAMA.map(c => c[2])), "text/csv"));
+
+    panel.querySelectorAll("[data-borrar-pr]").forEach(b =>
+      b.addEventListener("click", () => {
+        if (!confirm("Quitar este programa del listado.")) return;
+        e.programas.splice(+b.dataset.borrarPr, 1); App.guardar(); pintar();
+      }));
+  }
+
+  // ---------------------------------------------------------- divisiones
+
+  function tablaSimple(titulo, coleccion, campos, clave) {
+    panel.innerHTML = `<h2>${titulo}</h2>
+      ${barraImportar(clave, coleccion.length + " registros")}
+      <div class="tabla-envoltura"><table>
+        <thead><tr>${campos.map(c => `<th>${c[1]}</th>`).join("")}<th></th></tr></thead>
+        <tbody>${coleccion.map((r, i) => `<tr>
+          ${campos.map(c => `<td><input data-e="${i}" data-c="${c[0]}" value="${App.esc(r[c[0]])}" style="min-width:200px;border:none;background:transparent"></td>`).join("")}
+          <td><button class="peligro" data-borrar="${i}">Quitar</button></td>
+        </tr>`).join("")}</tbody></table></div>`;
+
+    panel.querySelectorAll("[data-e]").forEach(inp =>
+      inp.addEventListener("change", () => {
+        coleccion[+inp.dataset.e][inp.dataset.c] = inp.value;
+        App.guardar();
+      }));
+    panel.querySelectorAll("[data-borrar]").forEach(b =>
+      b.addEventListener("click", () => {
+        if (!confirm("Quitar este registro.")) return;
+        coleccion.splice(+b.dataset.borrar, 1); App.guardar(); pintar();
+      }));
+    document.getElementById(clave + "-nuevo").addEventListener("click", () => {
+      const o = {}; campos.forEach(c => o[c[0]] = "");
+      coleccion.push(o); App.guardar(); pintar();
+    });
+    document.getElementById(clave + "-importar").addEventListener("click", () =>
+      document.getElementById(clave + "-archivo").click());
+    document.getElementById(clave + "-archivo").addEventListener("change", function () {
+      const f = this.files[0]; if (!f) return;
+      const lector = new FileReader();
+      lector.onload = () => {
+        const filas = App.leerCSV(lector.result);
+        if (!filas.length) { alert("El archivo no tiene filas de datos."); return; }
+        const nuevos = filas.map(f2 => {
+          const o = {}; campos.forEach(c => o[c[0]] = f2[c[2]] || f2[c[1]] || ""); return o;
+        }).filter(o => o[campos[0][0]]);
+        coleccion.length = 0;
+        nuevos.forEach(n => coleccion.push(n));
+        App.guardar(); pintar();
+      };
+      lector.readAsText(f, "utf-8");
+      this.value = "";
+    });
+    document.getElementById(clave + "-exportar").addEventListener("click", () =>
+      App.descargar(clave + ".csv",
+        App.escribirCSV(coleccion.map(r => {
+          const o = {}; campos.forEach(c => o[c[2]] = r[c[0]]); return o;
+        }), campos.map(c => c[2])), "text/csv"));
+  }
+
+  function secDivisiones() {
+    tablaSimple("Divisiones académicas", e.divisiones,
+      [["nombre", "División", "Título"], ["decano", "Decano o decana", "Decano/a"]], "dv");
+  }
+
+  function secDepartamentos() {
+    tablaSimple("Departamentos académicos", e.departamentos,
+      [["nombre", "Departamento", "Título"],
+       ["division", "División", "División Académica"],
+       ["director", "Director o directora", "Director/a de Departamento"]], "dp");
+  }
+
+  // ---------------------------------------------------------- catálogos
+
+  function secCatalogos() {
+    const grupos = [
+      ["modalidades", "Modalidades"],
+      ["nivelesFormacion", "Niveles de formación"],
+      ["estadosPrograma", "Estados del programa"],
+      ["estadosProceso", "Estados del proceso"]
+    ];
+    panel.innerHTML = `<h2>Listas de selección</h2>
+      <p>Valores que aparecen en los filtros y en los formularios. Escriba un valor por línea.</p>
+      <div class="rejilla-2">${grupos.map(g => `
+        <div>
+          <h3>${g[1]}</h3>
+          <textarea data-cat="${g[0]}" style="min-height:150px">${App.esc((e.catalogos[g[0]] || []).join("\n"))}</textarea>
+        </div>`).join("")}
+      </div>
+      <div class="fila"><button id="guardar-cat">Guardar listas</button>
+      <button class="secundario" id="restaurar-cat">Restaurar valores originales</button></div>`;
+
+    document.getElementById("guardar-cat").addEventListener("click", () => {
+      panel.querySelectorAll("[data-cat]").forEach(t => {
+        e.catalogos[t.dataset.cat] = t.value.split("\n").map(s => s.trim()).filter(Boolean);
+      });
+      App.guardar();
+      alert("Listas guardadas.");
+    });
+    document.getElementById("restaurar-cat").addEventListener("click", () => {
+      if (!confirm("Se restauran los valores originales de las cuatro listas.")) return;
+      e.catalogos = JSON.parse(JSON.stringify(App.CATALOGOS_BASE));
+      App.guardar(); pintar();
+    });
+  }
+
+  // ---------------------------------------------------------- rutas
+
+  function secRutas() {
+    panel.innerHTML = `<h2>Rutas de proceso</h2>
+      <p>Nombre, responsable y duración estimada de cada etapa. Los cambios aplican a los procesos que se creen de aquí en adelante; los procesos ya abiertos conservan la ruta con la que nacieron.</p>
+      ${e.rutas.map((r, ri) => `
+        <section>
+          <h3>${App.esc(r.nombre)} <span class="discreto">· ${App.esc(r.procedimiento)}</span></h3>
+          <div class="tabla-envoltura" style="max-height:none"><table>
+            <thead><tr><th style="width:40px">No.</th><th>Etapa</th><th>Responsable</th><th class="num" style="width:120px">Días</th></tr></thead>
+            <tbody>${r.etapas.map((x, xi) => `<tr>
+              <td>${xi + 1}</td>
+              <td><input data-r="${ri}" data-x="${xi}" data-c="n" value="${App.esc(x.n)}" style="width:100%;border:none;background:transparent"></td>
+              <td><input data-r="${ri}" data-x="${xi}" data-c="resp" value="${App.esc(x.resp)}" style="width:100%;border:none;background:transparent"></td>
+              <td class="num"><input type="number" min="0" data-r="${ri}" data-x="${xi}" data-c="dias" value="${x.dias}" style="width:90px"></td>
+            </tr>`).join("")}</tbody>
+          </table></div>
+        </section>`).join("")}
+      <div class="fila"><button class="secundario" id="restaurar-rutas">Restaurar rutas originales</button></div>`;
+
+    panel.querySelectorAll("[data-r]").forEach(inp =>
+      inp.addEventListener("change", () => {
+        const v = inp.dataset.c === "dias" ? Number(inp.value) : inp.value;
+        e.rutas[+inp.dataset.r].etapas[+inp.dataset.x][inp.dataset.c] = v;
+        App.guardar();
+      }));
+    document.getElementById("restaurar-rutas").addEventListener("click", () => {
+      if (!confirm("Se restauran las cinco rutas a su definición original.")) return;
+      e.rutas = JSON.parse(JSON.stringify(window.RUTAS));
+      App.guardar(); pintar();
+    });
+  }
+
+  // ---------------------------------------------------------- procesos
+
+  function secProcesos() {
+    panel.innerHTML = `<h2>Procesos abiertos</h2>
+      ${e.procesos.length ? `
+        <div class="controles"><button class="secundario" id="exp-proc">Exportar a CSV</button></div>
+        <div class="tabla-envoltura"><table>
+          <thead><tr><th>Programa</th><th>Proceso</th><th>División</th><th>Líder</th>
+            <th class="num">Avance</th><th>Estado</th><th>Abierto</th><th></th></tr></thead>
+          <tbody>${e.procesos.map((p, i) => `<tr>
+            <td>${App.esc(p.programa || "—")}</td>
+            <td>${App.esc(p.rutaNombre)}</td>
+            <td>${App.esc(p.division)}</td>
+            <td>${App.esc(p.lider)}</td>
+            <td class="num">${App.avance(p)} %</td>
+            <td>${App.esc(p.estado)}</td>
+            <td>${App.fecha(p.creado)}</td>
+            <td><a href="proceso.html?id=${p.id}">Abrir</a> · <button class="peligro" data-del="${i}">Eliminar</button></td>
+          </tr>`).join("")}</tbody>
+        </table></div>`
+      : `<div class="vacio">No hay procesos registrados en este navegador.</div>`}`;
+
+    panel.querySelectorAll("[data-del]").forEach(b =>
+      b.addEventListener("click", () => {
+        if (!confirm("Se elimina el proceso y su bitácora.")) return;
+        e.procesos.splice(+b.dataset.del, 1); App.guardar(); pintar();
+      }));
+    const exp = document.getElementById("exp-proc");
+    if (exp) exp.addEventListener("click", () =>
+      App.descargar("procesos.csv", App.escribirCSV(e.procesos.map(p => ({
+        "Programa": p.programa, "Proceso": p.rutaNombre, "División": p.division,
+        "Departamento": p.departamento, "Líder": p.lider, "Correo": p.correo,
+        "Avance": App.avance(p) + " %", "Estado": p.estado, "Abierto": App.fecha(p.creado)
+      })), ["Programa", "Proceso", "División", "Departamento", "Líder", "Correo", "Avance", "Estado", "Abierto"]),
+      "text/csv"));
+  }
+
+  // ---------------------------------------------------------- datos
+
+  function secDatos() {
+    panel.innerHTML = `<h2>Copia de seguridad</h2>
+      <p>Este prototipo guarda todo en el navegador de cada persona. Para compartir la información con alguien más, exporte el archivo y pídale que lo importe.</p>
+      <div class="controles">
+        <button id="exp-todo">Exportar todo (JSON)</button>
+        <button class="secundario" id="imp-todo">Importar copia</button>
+        <input type="file" accept=".json,application/json" id="imp-archivo" class="oculto">
+      </div>
+      <div class="nota">Si publica esta aplicación en un servidor compartido, la información sigue siendo local a cada navegador: dos personas que abran la misma dirección no verán lo mismo. Para trabajo compartido se requiere una base de datos.</div>
+      <h3 style="margin-top:2rem">Reiniciar</h3>
+      <p>Se borran los procesos y se restauran las tablas básicas con los datos originales de la Universidad.</p>
+      <button class="peligro" id="reiniciar">Reiniciar la aplicación</button>`;
+
+    document.getElementById("exp-todo").addEventListener("click", () =>
+      App.descargar("rutas-curriculares-" + new Date().toISOString().slice(0, 10) + ".json",
+        JSON.stringify(App.cargar(), null, 2), "application/json"));
+    document.getElementById("imp-todo").addEventListener("click", () =>
+      document.getElementById("imp-archivo").click());
+    document.getElementById("imp-archivo").addEventListener("change", function () {
+      const f = this.files[0]; if (!f) return;
+      const lector = new FileReader();
+      lector.onload = () => {
+        try {
+          const datos = JSON.parse(lector.result);
+          if (!datos || !datos.divisiones) throw new Error("estructura");
+          localStorage.setItem("rutas-curriculares-v1", JSON.stringify(datos));
+          location.reload();
+        } catch (err) {
+          alert("El archivo no corresponde a una copia de esta aplicación.");
+        }
+      };
+      lector.readAsText(f, "utf-8");
+      this.value = "";
+    });
+    document.getElementById("reiniciar").addEventListener("click", () => {
+      if (!confirm("Se borran todos los procesos y se restauran las tablas básicas.")) return;
+      App.reiniciar();
+      location.reload();
+    });
+  }
+
+  pintar();
+})();
+</script>
+</body>
+</html>

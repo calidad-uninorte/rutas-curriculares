@@ -1,0 +1,297 @@
+/* Rutas Curriculares — Universidad del Norte
+   Paleta y tipografía conforme a la norma de marca institucional. */
+
+:root {
+  --rojo: #960A11;
+  --rojo-tenue: #F3E3E4;
+  --tinta: #151515;
+  --arena: #CFC493;
+  --oro: #B78B1E;
+  --papel: #FFFFFF;
+  --niebla: #F6F5F3;
+  --gris: #6E6E6E;
+  --gris-claro: #D9D7D3;
+  --rail: 248px;
+  --medida: 68ch;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: Montserrat, "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--tinta);
+  background: var(--papel);
+}
+
+a { color: var(--rojo); }
+
+h1, h2, h3, h4 {
+  font-family: Montserrat, "Segoe UI", system-ui, sans-serif;
+  line-height: 1.2;
+  margin: 0 0 .5rem;
+  font-weight: 700;
+}
+
+h1 { font-size: 2rem; letter-spacing: -.01em; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1rem; }
+
+p { margin: 0 0 .9rem; max-width: var(--medida); }
+
+/* ---------------------------------------------------------- estructura */
+
+.rail {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--rail);
+  background: var(--tinta);
+  color: #fff;
+  padding: 1.5rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+}
+
+.rail .marca {
+  font-weight: 700;
+  font-size: .95rem;
+  line-height: 1.25;
+  border-left: 3px solid var(--rojo);
+  padding-left: .6rem;
+}
+
+.rail .marca span {
+  display: block;
+  font-weight: 400;
+  font-size: .72rem;
+  color: var(--arena);
+  margin-top: .25rem;
+}
+
+.rail nav { display: flex; flex-direction: column; gap: .1rem; }
+
+.rail nav a {
+  color: #ded9d1;
+  text-decoration: none;
+  padding: .5rem .6rem;
+  border-radius: 3px;
+  font-size: .88rem;
+}
+
+.rail nav a:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.rail nav a[aria-current="page"] { background: var(--rojo); color: #fff; font-weight: 600; }
+
+.rail .pie { margin-top: auto; font-size: .7rem; color: #8b877f; }
+
+main {
+  margin-left: var(--rail);
+  padding: 2.5rem 3rem 5rem;
+  max-width: 1180px;
+}
+
+.encabezado { border-bottom: 2px solid var(--arena); padding-bottom: 1rem; margin-bottom: 2rem; }
+.encabezado p { color: var(--gris); margin-bottom: 0; }
+
+section { margin-bottom: 2.5rem; }
+
+/* ---------------------------------------------------------- rutas */
+
+.rutas { display: flex; flex-direction: column; gap: 0; }
+
+.ruta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem;
+  align-items: start;
+  padding: 1.4rem 0;
+  border-top: 1px solid var(--gris-claro);
+  text-decoration: none;
+  color: inherit;
+}
+
+.ruta:last-child { border-bottom: 1px solid var(--gris-claro); }
+.ruta:hover { background: var(--niebla); }
+.ruta h3 { margin-bottom: .3rem; }
+.ruta p { margin-bottom: .5rem; font-size: .9rem; color: var(--gris); }
+
+.ruta .cifras { text-align: right; white-space: nowrap; font-size: .8rem; color: var(--gris); }
+.ruta .cifras b { display: block; font-size: 1.5rem; color: var(--tinta); line-height: 1.1; }
+
+.pista { display: flex; gap: 3px; margin-top: .6rem; }
+.pista i { display: block; height: 6px; flex: 1; background: var(--arena); }
+.pista i.hecho { background: var(--tinta); }
+.pista i.curso { background: var(--oro); }
+
+/* ---------------------------------------------------------- tablas */
+
+table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+th, td { text-align: left; padding: .55rem .6rem; border-bottom: 1px solid var(--gris-claro); vertical-align: top; }
+th { background: var(--tinta); color: #fff; font-weight: 600; font-size: .78rem; position: sticky; top: 0; }
+tbody tr:hover { background: var(--niebla); }
+td.num, th.num { text-align: right; }
+
+.tabla-envoltura { max-height: 62vh; overflow: auto; border: 1px solid var(--gris-claro); }
+
+/* ---------------------------------------------------------- controles */
+
+.controles { display: flex; flex-wrap: wrap; gap: .6rem; align-items: flex-end; margin-bottom: 1rem; }
+
+label.campo { display: flex; flex-direction: column; gap: .25rem; font-size: .78rem; color: var(--gris); }
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: .88rem;
+  padding: .45rem .55rem;
+  border: 1px solid var(--gris-claro);
+  border-radius: 3px;
+  background: #fff;
+  color: var(--tinta);
+  min-width: 180px;
+}
+
+textarea { min-height: 80px; width: 100%; max-width: var(--medida); }
+input:focus, select:focus, textarea:focus, button:focus-visible, a:focus-visible {
+  outline: 2px solid var(--rojo); outline-offset: 2px;
+}
+
+button {
+  font-family: inherit;
+  font-size: .85rem;
+  font-weight: 600;
+  padding: .5rem .9rem;
+  border: 1px solid var(--tinta);
+  background: var(--tinta);
+  color: #fff;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+button:hover { background: var(--rojo); border-color: var(--rojo); }
+button.secundario { background: #fff; color: var(--tinta); }
+button.secundario:hover { background: var(--niebla); color: var(--rojo); }
+button.peligro { background: #fff; color: var(--rojo); border-color: var(--rojo); }
+button.peligro:hover { background: var(--rojo); color: #fff; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ---------------------------------------------------------- estados */
+
+.estado {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 600;
+  padding: .15rem .5rem;
+  border-radius: 2px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.estado.pendiente { color: var(--gris); border-color: var(--gris-claro); background: var(--niebla); }
+.estado.curso { color: #6d5210; border-color: var(--oro); background: #FBF3DC; }
+.estado.hecho { color: #fff; border-color: var(--tinta); background: var(--tinta); }
+.estado.alerta { color: var(--rojo); border-color: var(--rojo); background: var(--rojo-tenue); }
+
+/* ---------------------------------------------------------- etapas */
+
+.etapas { list-style: none; padding: 0; margin: 0; }
+
+.etapa {
+  display: grid;
+  grid-template-columns: 2.2rem 1fr auto;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--gris-claro);
+}
+
+.etapa:last-child { border-bottom: 1px solid var(--gris-claro); }
+
+.etapa .indice {
+  font-weight: 700;
+  font-size: .85rem;
+  color: #fff;
+  background: var(--arena);
+  width: 2.2rem; height: 2.2rem;
+  display: grid; place-items: center;
+  border-radius: 50%;
+}
+
+.etapa.hecho .indice { background: var(--tinta); }
+.etapa.curso .indice { background: var(--oro); }
+.etapa h3 { font-size: .95rem; margin-bottom: .25rem; }
+.etapa .meta { font-size: .78rem; color: var(--gris); }
+.etapa .meta b { color: var(--tinta); font-weight: 600; }
+.etapa .acciones { display: flex; flex-direction: column; gap: .35rem; align-items: flex-end; }
+
+/* ---------------------------------------------------------- utilidades */
+
+.nota {
+  border-left: 3px solid var(--rojo);
+  background: var(--niebla);
+  padding: .8rem 1rem;
+  font-size: .85rem;
+  max-width: var(--medida);
+}
+
+.vacio {
+  border: 1px dashed var(--gris-claro);
+  padding: 2rem;
+  text-align: center;
+  color: var(--gris);
+  font-size: .9rem;
+}
+
+.rejilla-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+.fila { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+.apilado { display: flex; flex-direction: column; gap: 1rem; }
+.discreto { color: var(--gris); font-size: .8rem; }
+.oculto { display: none !important; }
+
+.paso-indicador { display: flex; gap: .4rem; margin-bottom: 1.5rem; font-size: .75rem; color: var(--gris); }
+.paso-indicador span { padding: .25rem .6rem; border: 1px solid var(--gris-claro); border-radius: 2px; }
+.paso-indicador span.activo { background: var(--tinta); color: #fff; border-color: var(--tinta); }
+
+.opcion {
+  display: block;
+  border: 1px solid var(--gris-claro);
+  padding: 1rem;
+  margin-bottom: .6rem;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+.opcion:hover { border-color: var(--rojo); }
+.opcion input { min-width: 0; margin-right: .5rem; }
+.opcion strong { display: block; margin-bottom: .2rem; }
+.opcion span { font-size: .85rem; color: var(--gris); }
+
+.barra { height: 8px; background: var(--niebla); border: 1px solid var(--gris-claro); }
+.barra i { display: block; height: 100%; background: var(--tinta); }
+
+.pestanas { display: flex; gap: .3rem; border-bottom: 2px solid var(--arena); margin-bottom: 1.5rem; flex-wrap: wrap; }
+.pestanas button {
+  background: none; border: none; color: var(--gris);
+  border-bottom: 3px solid transparent; border-radius: 0; margin-bottom: -2px;
+}
+.pestanas button.activo { color: var(--tinta); border-bottom-color: var(--rojo); }
+.pestanas button:hover { background: none; color: var(--rojo); }
+
+@media (max-width: 860px) {
+  .rail { position: static; width: auto; inset: auto; }
+  main { margin-left: 0; padding: 1.5rem 1.25rem 4rem; }
+  .ruta { grid-template-columns: 1fr; }
+  .ruta .cifras { text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  .rail, .controles, button { display: none !important; }
+  main { margin: 0; }
+}

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proceso · Rutas Curriculares</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+
+<aside class="rail">
+  <div class="marca">Rutas Curriculares<span>Universidad del Norte · Dirección de Calidad y Proyectos Académicos</span></div>
+  <nav>
+    <a href="index.html">Inicio</a>
+    <a href="programas.html">Programas</a>
+    <a href="proceso.html">Iniciar un proceso</a>
+    <a href="admin.html">Administración</a>
+  </nav>
+  <div class="pie">Prototipo para revisión interna. La información se guarda en este navegador.</div>
+</aside>
+
+<main id="vista"></main>
+
+<script src="assets/js/datos.js"></script>
+<script src="assets/js/rutas.js"></script>
+<script src="assets/js/almacen.js"></script>
+<script>
+(function () {
+  const e = App.cargar();
+  const vista = document.getElementById("vista");
+  const params = new URLSearchParams(location.search);
+
+  const borrador = {
+    rutaId: params.get("ruta") || "",
+    programa: params.get("programa") || "",
+    division: "", departamento: "", lider: "", correo: "", notas: "", respuestas: {}
+  };
+  let paso = borrador.rutaId ? 2 : 1;
+
+  if (params.get("id")) verDetalle(params.get("id"));
+  else pintarAsistente();
+
+  // ============================================================ asistente
+
+  function indicador() {
+    const nombres = ["Qué necesita hacer", "Sobre cuál programa", "Datos y confirmación"];
+    return `<div class="paso-indicador">${nombres.map((n, i) =>
+      `<span class="${i + 1 === paso ? "activo" : ""}">${i + 1}. ${n}</span>`).join("")}</div>`;
+  }
+
+  function pintarAsistente() {
+    if (paso === 1) return pasoUno();
+    if (paso === 2) return pasoDos();
+    return pasoTres();
+  }
+
+  function pasoUno() {
+    vista.innerHTML = `
+      <div class="encabezado">
+        <h1>Iniciar un proceso</h1>
+        <p>Escoja lo que necesita hacer. Si no está seguro, la descripción de cada opción indica cuándo aplica.</p>
+      </div>
+      ${indicador()}
+      <div id="opciones">${e.rutas.map(r => `
+        <label class="opcion">
+          <input type="radio" name="ruta" value="${r.id}" ${borrador.rutaId === r.id ? "checked" : ""}>
+          <strong>${App.esc(r.nombre)}</strong>
+          <span>${App.esc(r.cuando)}</span>
+          <span class="discreto">${r.etapas.length} etapas · ${App.meses(r.etapas.reduce((a, x) => a + (+x.dias || 0), 0))} · ${App.esc(r.procedimiento)}</span>
+        </label>`).join("")}
+      </div>
+      <div class="fila"><button id="siguiente" disabled>Continuar</button></div>`;
+
+    vista.querySelectorAll('input[name="ruta"]').forEach(i =>
+      i.addEventListener("change", () => {
+        borrador.rutaId = i.value;
+        vista.querySelector("#siguiente").disabled = false;
+      }));
+    if (borrador.rutaId) vista.querySelector("#siguiente").disabled = false;
+    vista.querySelector("#siguiente").addEventListener("click", () => { paso = 2; pintarAsistente(); });
+  }
+
+  function pasoDos() {
+    const ruta = e.rutas.find(r => r.id === borrador.rutaId);
+    const requiere = ruta && ruta.requiereProgramaExistente;
+    const progs = e.programas.slice().sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+
+    vista.innerHTML = `
+      <div class="encabezado">
+        <h1>${App.esc(ruta.nombre)}</h1>
+        <p>${App.esc(ruta.resumen)}</p>
+      </div>
+      ${indicador()}
+      ${requiere ? `
+        <p>Escoja el programa sobre el cual va a adelantar el proceso.</p>
+        ${progs.length ? `
+          <label class="campo" style="max-width:520px">Programa académico
+            <select id="programa" style="min-width:480px">
+              <option value="">Seleccione…</option>
+              ${progs.map(p => `<option value="${App.esc(p.nombre)}" ${borrador.programa === p.nombre ? "selected" : ""}>${App.esc(p.nombre)} — ${App.esc(p.division)}</option>`).join("")}
+            </select>
+          </label>`
+        : `<div class="vacio">No hay programas cargados. Escriba el nombre del programa o cárguelo desde <a href="admin.html">Administración</a>.
+            <br><br><input id="programa-libre" placeholder="Nombre del programa" style="min-width:320px" value="${App.esc(borrador.programa)}">
+          </div>`}
+      ` : `
+        <p>Indique la unidad académica que propone el programa nuevo.</p>`}
+
+      <div class="controles" style="margin-top:1rem">
+        <label class="campo">División académica
+          <select id="division">
+            <option value="">Seleccione…</option>
+            ${e.divisiones.map(d => `<option ${borrador.division === d.nombre ? "selected" : ""}>${App.esc(d.nombre)}</option>`).join("")}
+          </select>
+        </label>
+        <label class="campo">Departamento académico
+          <select id="departamento"><option value="">Seleccione…</option></select>
+        </label>
+      </div>
+
+      <div class="fila">
+        <button class="secundario" id="atras">Volver</button>
+        <button id="siguiente">Continuar</button>
+      </div>`;
+
+    const selDiv = vista.querySelector("#division");
+    const selDep = vista.querySelector("#departamento");
+
+    function llenarDeps() {
+      selDep.innerHTML = '<option value="">Seleccione…</option>';
+      e.departamentos.filter(d => !selDiv.value || d.division === selDiv.value)
+        .forEach(d => {
+          const o = document.createElement("option");
+          o.textContent = d.nombre;
+          if (borrador.departamento === d.nombre) o.selected = true;
+          selDep.appendChild(o);
+        });
+    }
+    llenarDeps();
+    selDiv.addEventListener("change", llenarDeps);
+
+    const selProg = vista.querySelector("#programa");
+    if (selProg) selProg.addEventListener("change", function () {
+      const p = e.programas.find(x => x.nombre === this.value);
+      if (p) {
+        if (p.division) { selDiv.value = p.division; llenarDeps(); }
+        if (p.departamento) selDep.value = p.departamento;
+      }
+    });
+
+    vista.querySelector("#atras").addEventListener("click", () => { paso = 1; pintarAsistente(); });
+    vista.querySelector("#siguiente").addEventListener("click", () => {
+      const libre = vista.querySelector("#programa-libre");
+      borrador.programa = selProg ? selProg.value : (libre ? libre.value.trim() : "");
+      borrador.division = selDiv.value;
+      borrador.departamento = selDep.value;
+      if (requiere && !borrador.programa) {
+        alert("Indique el programa sobre el cual se adelanta el proceso.");
+        return;
+      }
+      if (!borrador.division) { alert("Seleccione la división académica."); return; }
+      paso = 3; pintarAsistente();
+    });
+  }
+
+  function preguntas(rutaId) {
+    const comunes = [
+      { k: "comite", t: "¿El Comité de Currículo del programa ya conoce la iniciativa?" },
+      { k: "equipo", t: "¿Hay un equipo definido para preparar la documentación?" }
+    ];
+    const propias = {
+      creacion: [{ k: "similar", t: "¿Revisó si la Universidad ya ofrece un programa similar?" }],
+      modificacion: [
+        { k: "vigencia", t: "¿Verificó que el registro calificado del programa está vigente?" },
+        { k: "anios", t: "¿Han transcurrido al menos cuatro años desde la última reforma curricular?" }
+      ],
+      renovacion: [{ k: "antelacion", t: "¿Faltan al menos 14 meses para el vencimiento del registro calificado?" }],
+      autoevaluacion: [{ k: "previa", t: "¿Existe un informe de autoevaluación anterior con plan de mejoramiento?" }],
+      inactivacion: [{ k: "cohortes", t: "¿Hay estudiantes matriculados que deban culminar sus estudios?" }]
+    };
+    return comunes.concat(propias[rutaId] || []);
+  }
+
+  function pasoTres() {
+    const ruta = e.rutas.find(r => r.id === borrador.rutaId);
+    const dias = ruta.etapas.reduce((a, x) => a + (+x.dias || 0), 0);
+    const qs = preguntas(ruta.id);
+
+    vista.innerHTML = `
+      <div class="encabezado">
+        <h1>${App.esc(ruta.nombre)}</h1>
+        <p>${App.esc(borrador.programa || borrador.division)}</p>
+      </div>
+      ${indicador()}
+
+      <div class="rejilla-2">
+        <div>
+          <h2>Quién lidera</h2>
+          <div class="apilado">
+            <label class="campo">Nombre y cargo
+              <input id="lider" placeholder="Ej.: Ana Pérez, coordinadora de programa" style="min-width:320px">
+            </label>
+            <label class="campo">Correo institucional
+              <input id="correo" type="email" placeholder="usuario@uninorte.edu.co" style="min-width:320px">
+            </label>
+            <label class="campo">Contexto de la solicitud
+              <textarea id="notas" placeholder="En dos o tres líneas, qué motiva este proceso."></textarea>
+            </label>
+          </div>
+        </div>
+        <div>
+          <h2>Punto de partida</h2>
+          <p class="discreto">Estas respuestas no bloquean el trámite: orientan el acompañamiento de la Dirección de Calidad y Proyectos Académicos.</p>
+          ${qs.map(q => `<label class="opcion" style="padding:.6rem .8rem">
+            <span>${App.esc(q.t)}</span>
+            <span class="fila" style="margin-top:.4rem">
+              <label class="discreto"><input type="radio" name="q-${q.k}" value="Sí"> Sí</label>
+              <label class="discreto"><input type="radio" name="q-${q.k}" value="No"> No</label>
+              <label class="discreto"><input type="radio" name="q-${q.k}" value="No sé" checked> No sé</label>
+            </span>
+          </label>`).join("")}
+        </div>
+      </div>
+
+      <section>
+        <h2>La ruta que va a seguir</h2>
+        <p>${ruta.etapas.length} etapas, ${App.meses(dias)} de duración estimada. Procedimiento de referencia: ${App.esc(ruta.procedimiento)}.</p>
+        <ul class="etapas">${ruta.etapas.map((x, i) => `
+          <li class="etapa">
+            <div class="indice">${i + 1}</div>
+            <div>
+              <h3>${App.esc(x.n)}</h3>
+              <div class="meta">${App.esc(x.que)}</div>
+              <div class="meta"><b>Responsable:</b> ${App.esc(x.resp)}${x.docs && x.docs.length ? " · <b>Documentos:</b> " + App.esc(x.docs.join(", ")) : ""}${x.sistema ? " · <b>Sistemas:</b> " + App.esc(x.sistema) : ""}</div>
+            </div>
+            <div class="acciones discreto">${x.dias} días</div>
+          </li>`).join("")}
+        </ul>
+      </section>
+
+      <div class="fila">
+        <button class="secundario" id="atras">Volver</button>
+        <button id="crear">Crear el proceso</button>
+      </div>`;
+
+    vista.querySelector("#lider").value = borrador.lider;
+    vista.querySelector("#correo").value = borrador.correo;
+    vista.querySelector("#notas").value = borrador.notas;
+
+    vista.querySelector("#atras").addEventListener("click", () => { paso = 2; pintarAsistente(); });
+    vista.querySelector("#crear").addEventListener("click", () => {
+      borrador.lider = vista.querySelector("#lider").value.trim();
+      borrador.correo = vista.querySelector("#correo").value.trim();
+      borrador.notas = vista.querySelector("#notas").value.trim();
+      if (!borrador.lider) { alert("Indique quién lidera el proceso."); return; }
+      qs.forEach(q => {
+        const sel = vista.querySelector(`input[name="q-${q.k}"]:checked`);
+        borrador.respuestas[q.t] = sel ? sel.value : "";
+      });
+      const p = App.crearProceso(borrador);
+      location.search = "?id=" + p.id;
+    });
+  }
+
+  // ============================================================ detalle
+
+  function verDetalle(pid) {
+    const p = App.proceso(pid);
+    if (!p) {
+      vista.innerHTML = `<div class="encabezado"><h1>Proceso no encontrado</h1>
+        <p>Este proceso no existe en este navegador. Puede que se haya creado en otro equipo.</p></div>
+        <a href="proceso.html"><button>Iniciar un proceso</button></a>`;
+      return;
+    }
+    const ruta = e.rutas.find(r => r.id === p.rutaId);
+
+    function pintar() {
+      const av = App.avance(p);
+      const rest = App.diasRestantes(p);
+      vista.innerHTML = `
+        <div class="encabezado">
+          <h1>${App.esc(p.rutaNombre)}</h1>
+          <p>${App.esc(p.programa || "Programa nuevo")} · ${App.esc(p.division)}${p.departamento ? " · " + App.esc(p.departamento) : ""}</p>
+        </div>
+
+        <div class="rejilla-2">
+          <div>
+            <div class="barra"><i style="width:${av}%"></i></div>
+            <p class="discreto" style="margin-top:.4rem">${av} % completado · ${p.etapas.filter(x => x.hecho).length} de ${p.etapas.length} etapas · quedan ${App.meses(rest)} de trabajo estimado</p>
+          </div>
+          <div>
+            <div class="fila">
+              <label class="campo">Estado del proceso
+                <select id="estado">${e.catalogos.estadosProceso.map(s =>
+                  `<option ${p.estado === s ? "selected" : ""}>${App.esc(s)}</option>`).join("")}</select>
+              </label>
+              <button class="secundario" id="exportar">Descargar resumen</button>
+            </div>
+            <p class="discreto">Líder: ${App.esc(p.lider)}${p.correo ? " · " + App.esc(p.correo) : ""}<br>
+            Abierto el ${App.fecha(p.creado)} · Procedimiento ${App.esc(ruta ? ruta.procedimiento : "")}</p>
+          </div>
+        </div>
+
+        ${p.notas ? `<div class="nota">${App.esc(p.notas)}</div>` : ""}
+
+        <section>
+          <h2>Etapas</h2>
+          <ul class="etapas">${p.etapas.map((x, i) => {
+            const base = ruta ? ruta.etapas[i] : null;
+            const siguiente = !x.hecho && p.etapas.slice(0, i).every(y => y.hecho);
+            const clase = x.hecho ? "hecho" : (siguiente ? "curso" : "");
+            return `<li class="etapa ${clase}">
+              <div class="indice">${i + 1}</div>
+              <div>
+                <h3>${App.esc(x.nombre)}</h3>
+                ${base ? `<div class="meta">${App.esc(base.que)}</div>` : ""}
+                <div class="meta"><b>Responsable:</b> ${App.esc(x.responsable)} · <b>Duración estimada:</b> ${x.dias} días
+                ${base && base.docs && base.docs.length ? " · <b>Documentos:</b> " + App.esc(base.docs.join(", ")) : ""}
+                ${base && base.sistema ? " · <b>Sistemas:</b> " + App.esc(base.sistema) : ""}</div>
+                ${x.hecho ? `<div class="meta"><b>Completada el</b> ${App.esc(x.fecha)}</div>` : ""}
+                <input data-obs="${i}" placeholder="Observación o número de acta" value="${App.esc(x.observacion)}" style="margin-top:.4rem;min-width:320px">
+              </div>
+              <div class="acciones">
+                <span class="estado ${x.hecho ? "hecho" : (siguiente ? "curso" : "pendiente")}">${x.hecho ? "Completada" : (siguiente ? "Siguiente" : "Pendiente")}</span>
+                <button class="${x.hecho ? "secundario" : ""}" data-marcar="${i}">${x.hecho ? "Reabrir" : "Marcar completada"}</button>
+              </div>
+            </li>`;
+          }).join("")}</ul>
+        </section>
+
+        <section>
+          <h2>Bitácora</h2>
+          <div class="fila" style="margin-bottom:.8rem">
+            <input id="nota-nueva" placeholder="Registrar una novedad" style="min-width:420px">
+            <button class="secundario" id="agregar-nota">Agregar</button>
+          </div>
+          <div class="tabla-envoltura" style="max-height:32vh"><table>
+            <thead><tr><th style="width:160px">Fecha</th><th>Novedad</th></tr></thead>
+            <tbody>${p.bitacora.slice().reverse().map(b =>
+              `<tr><td>${App.fecha(b.fecha)}</td><td>${App.esc(b.texto)}</td></tr>`).join("")}</tbody>
+          </table></div>
+        </section>
+
+        <div class="fila">
+          <a href="index.html"><button class="secundario">Volver al inicio</button></a>
+          <button class="peligro" id="eliminar">Eliminar este proceso</button>
+        </div>`;
+
+      vista.querySelectorAll("[data-marcar]").forEach(b =>
+        b.addEventListener("click", () => {
+          const i = +b.dataset.marcar;
+          p.etapas[i].hecho = !p.etapas[i].hecho;
+          p.etapas[i].fecha = p.etapas[i].hecho ? App.fecha(new Date().toISOString()) : "";
+          App.registrarBitacora(p, (p.etapas[i].hecho ? "Etapa completada: " : "Etapa reabierta: ") + p.etapas[i].nombre);
+          if (p.etapas.every(x => x.hecho)) {
+            p.estado = "Finalizado";
+            App.registrarBitacora(p, "Todas las etapas quedaron completadas.");
+          }
+          App.guardar();
+          pintar();
+        }));
+
+      vista.querySelectorAll("[data-obs]").forEach(inp =>
+        inp.addEventListener("change", () => {
+          p.etapas[+inp.dataset.obs].observacion = inp.value;
+          App.guardar();
+        }));
+
+      vista.querySelector("#estado").addEventListener("change", function () {
+        p.estado = this.value;
+        App.registrarBitacora(p, "Estado del proceso: " + this.value);
+        App.guardar();
+      });
+
+      vista.querySelector("#agregar-nota").addEventListener("click", () => {
+        const c = vista.querySelector("#nota-nueva");
+        if (!c.value.trim()) return;
+        App.registrarBitacora(p, c.value.trim());
+        pintar();
+      });
+
+      vista.querySelector("#exportar").addEventListener("click", () => {
+        const filas = p.etapas.map((x, i) => ({
+          "No.": i + 1, "Etapa": x.nombre, "Responsable": x.responsable,
+          "Días estimados": x.dias, "Completada": x.hecho ? "Sí" : "No",
+          "Fecha": x.fecha, "Observación": x.observacion
+        }));
+        App.descargar("proceso-" + p.id + ".csv",
+          App.escribirCSV(filas, ["No.", "Etapa", "Responsable", "Días estimados", "Completada", "Fecha", "Observación"]),
+          "text/csv");
+      });
+
+      vista.querySelector("#eliminar").addEventListener("click", () => {
+        if (!confirm("Se eliminará este proceso y su bitácora. Esta acción no se puede deshacer.")) return;
+        const est = App.cargar();
+        est.procesos = est.procesos.filter(x => x.id !== p.id);
+        App.guardar();
+        location.href = "index.html";
+      });
+    }
+
+    pintar();
+  }
+})();
+</script>
+</body>
+</html>
